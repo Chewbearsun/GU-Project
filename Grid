@@ -1,0 +1,693 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Guardian - Predictive AI Workspace</title>
+    <!-- Tailwind CSS for high-fidelity styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Pulse Red Keyframes for Empty/Unconfigured Nodes */
+        @keyframes pulseRedAlert {
+            0% { box-shadow: inset 0 0 2px #ef4444; }
+            50% { background-color: #7f1d1d; box-shadow: inset 0 0 14px #ef4444; border-color: #f87171; }
+            100% { box-shadow: inset 0 0 2px #ef4444; }
+        }
+        .node.editable-target {
+            animation: pulseRedAlert 1.6s infinite ease-in-out;
+            border: 1px dashed #ef4444;
+        }
+        .node.editable-target:hover {
+            animation: none;
+            background-color: #b91c1c;
+            border: 2px solid #ffffff;
+        }
+
+        /* Pulse Yellow Keyframes for Impending Anomaly Pre-Failure Nodes */
+        @keyframes pulseYellowWarning {
+            0% { box-shadow: 0 0 2px #eab308; }
+            50% { box-shadow: 0 0 16px #facc15; border: 2px solid #fef08a; background-color: #854d0e; }
+            100% { box-shadow: 0 0 2px #eab308; }
+        }
+        .node.predictive-warning {
+            animation: pulseYellowWarning 2s infinite ease-in-out;
+        }
+
+        /* Grid Node Hover Effects */
+        .node {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s, border-color 0.2s;
+        }
+        .node:hover {
+            transform: scale(1.15) z-index(10);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Standard Categories styling */
+        .node.homeland { background-color: #3b82f6; border-color: #60a5fa; }
+        .node.zoes-mock-trial { background-color: #a855f7; border-color: #c084fc; }
+        .node.empty { background-color: #374151; border-color: #4b5563; }
+
+        /* Smooth scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-neutral-950 text-neutral-100 min-height-screen flex flex-col items-center justify-start p-4 md:p-8 selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header & Brand -->
+    <header class="w-full max-w-5xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-black tracking-wider text-xl shadow-lg shadow-indigo-900/40">G</div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    The Guardian <span class="text-xs bg-indigo-900/80 text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-700/50">AI Core v2.5</span>
+                </h1>
+                <p class="text-xs text-neutral-400">Predictive Network Matrix & Diagnosis Hub</p>
+            </div>
+        </div>
+        
+        <!-- Live Connection Status -->
+        <div class="flex items-center gap-3 bg-neutral-900 px-4 py-2 rounded-lg border border-neutral-800">
+            <div class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></div>
+            <span class="text-xs font-semibold text-neutral-300">Gemini LLM Channel online</span>
+        </div>
+    </header>
+
+    <!-- Controls Panel -->
+    <div class="w-full max-w-5xl bg-neutral-900 rounded-xl p-4 border border-neutral-800 mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <!-- Grid Filters -->
+        <div class="flex flex-wrap gap-2 items-center">
+            <span class="text-xs text-neutral-400 mr-2 font-mono uppercase tracking-wider">Sector Filters:</span>
+            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium transition active-filter bg-neutral-100 text-neutral-950 font-bold" data-filter="all">All</button>
+            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium transition bg-neutral-800 hover:bg-neutral-700 text-neutral-300" data-filter="homeland">Homeland</button>
+            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium transition bg-neutral-800 hover:bg-neutral-700 text-neutral-300" data-filter="zoes-mock-trial">Zoe's Trial</button>
+            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium transition bg-neutral-800 hover:bg-neutral-700 text-neutral-300" data-filter="empty">Empty</button>
+        </div>
+
+        <!-- Simulation Tools & Diagnostics Toggle -->
+        <div class="flex flex-wrap items-center gap-3">
+            <button id="simulateAnomalyBtn" class="px-3.5 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-600/50 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                ⚡ Inject Anomaly
+            </button>
+            <button id="toggleDiagnosticBtn" class="px-4 py-1.5 bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 hover:bg-neutral-700 rounded-lg text-xs font-bold transition flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-neutral-500" id="diagnosticIndicator"></span>
+                Diagnostics Mode
+            </button>
+            <span id="diagnosticStatusText" class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Off</span>
+        </div>
+    </div>
+
+    <!-- Main Workspace Layout -->
+    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Grid Sandbox Block (8 cols) -->
+        <div class="lg:col-span-7 bg-neutral-900 rounded-xl p-5 border border-neutral-800 flex justify-center items-center overflow-x-auto">
+            <div class="relative">
+                <!-- Custom Floating Tooltip -->
+                <div id="tooltip" class="absolute pointer-events-none bg-neutral-950 text-white border border-neutral-800 px-3 py-2 rounded shadow-2xl text-xs z-50 whitespace-nowrap hidden flex-col gap-0.5">
+                    <span id="tooltipLabel" class="font-bold"></span>
+                    <span id="tooltipCoordinate" class="text-[10px] text-indigo-400 font-mono"></span>
+                </div>
+
+                <!-- 8x12 Matrix Grid Container -->
+                <div class="grid grid-cols-8 gap-1.5 p-1 bg-neutral-950 rounded-lg border border-neutral-800/80 w-[440px]" id="guardianGrid">
+                    <!-- Javascript populates 96 nodes here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Diagnostics and AI Deck Side Panel (5 cols) -->
+        <div class="lg:col-span-5 flex flex-col gap-4">
+            
+            <!-- Standard Details Display Card -->
+            <div class="bg-neutral-900 rounded-xl p-5 border border-neutral-800 flex flex-col justify-between min-h-[220px]" id="detailsCard">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span id="panelCategoryTag" class="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Node Status</span>
+                        <span id="panelCoords" class="text-xs font-mono text-neutral-400">Index: --</span>
+                    </div>
+                    <h3 id="panelTitle" class="text-lg font-bold text-neutral-100 mb-2">System Interface Idle</h3>
+                    <p id="panelDesc" class="text-sm text-neutral-400 leading-relaxed">
+                        To run live system telemetries, activate <strong class="text-indigo-400 font-medium">Diagnostics Mode</strong> and select a highlighted empty node (flashing red) or an anomaly warning (flashing yellow).
+                    </p>
+                </div>
+                <div class="border-t border-neutral-800 pt-4 mt-4 flex items-center justify-between text-xs text-neutral-500">
+                    <span>Target Node Address:</span>
+                    <span id="panelNodeId" class="font-mono text-neutral-400">UNRESOLVED</span>
+                </div>
+            </div>
+
+            <!-- AI Engine Suggestion / Resolution Card -->
+            <div id="aiSuggestionBox" class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 hidden flex-col gap-3 relative overflow-hidden transition-all duration-300">
+                <!-- Glowing background accent -->
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                
+                <div class="flex items-center justify-between z-10">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                            <span class="animate-pulse">✨</span> Predictive Intelligence
+                        </span>
+                    </div>
+                    <div class="text-[10px] font-mono bg-indigo-950 border border-indigo-800 text-indigo-300 px-2 py-0.5 rounded">
+                        Model: gemini-2.5-flash
+                    </div>
+                </div>
+
+                <!-- API Loader Display -->
+                <div id="aiLoader" class="hidden flex-col items-center justify-center py-8 gap-3 z-10">
+                    <div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-xs text-neutral-400 animate-pulse">Core intelligence calculating threat matrices...</p>
+                </div>
+
+                <!-- Error Fallback Display -->
+                <div id="aiError" class="hidden bg-rose-950/40 border border-rose-900 text-rose-300 rounded-lg p-3 text-xs z-10">
+                    <p class="font-bold mb-1">Telemetry Interrupted</p>
+                    <p id="aiErrorText">An unknown error blocked the predictive model pathway.</p>
+                </div>
+
+                <!-- Suggested Content Target -->
+                <div id="aiContent" class="flex flex-col gap-3 z-10">
+                    <div class="bg-neutral-950/80 rounded-lg border border-neutral-800 p-3.5">
+                        <div id="aiHeaderLabel" class="text-sm font-semibold text-white mb-1">Analyzing...</div>
+                        <p id="aiDescriptionLabel" class="text-xs text-neutral-400 leading-relaxed"></p>
+                    </div>
+
+                    <!-- AI Action button dynamically binds based on Yellow/Red State -->
+                    <button id="executeAiActionBtn" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/30">
+                        ⚡ Implement AI Adaptation Program
+                    </button>
+                </div>
+            </div>
+
+            <!-- Terminal System Log -->
+            <div class="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
+                <div class="text-xs font-mono font-bold text-neutral-400 mb-2 flex items-center justify-between">
+                    <span>📡 System Diagnostics Log:</span>
+                    <button id="clearLogBtn" class="text-[10px] text-indigo-400 hover:underline">Clear</button>
+                </div>
+                <div class="bg-neutral-950 p-3 rounded-lg border border-neutral-800 h-28 overflow-y-auto font-mono text-[10px] leading-relaxed text-neutral-400 flex flex-col gap-1" id="systemTerminalLog">
+                    <div>[SYS] Central matrix initialization successful.</div>
+                    <div>[SYS] Scanning 96 structural block arrays...</div>
+                    <div>[SYS] Matrix ready. Node 20 flagged under Predictive Telemetry (Warning status).</div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full max-w-5xl mt-8 text-center text-xs text-neutral-600 border-t border-neutral-900 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p>© 2026 The Guardian Network. Protected by AI-driven predictive firewalls.</p>
+        <p class="font-mono text-[10px]">Diagnostics Console Secure - Mode Sandbox Ready</p>
+    </footer>
+
+    <!-- Interactive Workspace Application Logic -->
+    <script>
+        // Set dynamic credentials (API framework provides keys at runtime environment)
+        const apiKey = ""; 
+
+        // Core Application State
+        let isDiagnosticMode = false;
+        let currentFilter = 'all';
+        let activeNodeElement = null;
+        let selectedNodeIndex = null;
+        let lastAIResponse = null;
+
+        // Base memory configuration map mapped to indices (0 to 95)
+        const nodeMap = {
+            0: { cat: 'homeland', label: 'Homeland Project', desc: 'Main control node tracking core regional telemetry and perimeter barriers.', dynamicStatus: 'stable' },
+            8: { cat: 'zoes-mock-trial', label: "Zoe's Mock Trial", desc: 'Legal virtualization platform conducting synthetic courtroom modeling.', dynamicStatus: 'stable' },
+            20: { cat: 'homeland', label: 'Border Encryption Gateway', desc: 'High-security pass-through corridor routing peripheral firewalls.', dynamicStatus: 'anomaly-warning' }
+        };
+
+        const grid = document.getElementById('guardianGrid');
+        const tooltip = document.getElementById('tooltip');
+        const tooltipLabel = document.getElementById('tooltipLabel');
+        const tooltipCoordinate = document.getElementById('tooltipCoordinate');
+        const systemTerminalLog = document.getElementById('systemTerminalLog');
+
+        // Color theme mapping variables
+        const categoryColorMap = {
+            'homeland': { text: 'text-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-950/20', badge: 'text-blue-300 border-blue-800 bg-blue-950/60' },
+            'zoes-mock-trial': { text: 'text-purple-400', border: 'border-purple-500/20', bg: 'bg-purple-950/20', badge: 'text-purple-300 border-purple-800 bg-purple-950/60' },
+            'empty': { text: 'text-neutral-500', border: 'border-neutral-800', bg: 'bg-neutral-950/40', badge: 'text-neutral-400 border-neutral-800 bg-neutral-900/60' }
+        };
+
+        // UI Element Selectors
+        const detailsCard = document.getElementById('detailsCard');
+        const panelCategoryTag = document.getElementById('panelCategoryTag');
+        const panelCoords = document.getElementById('panelCoords');
+        const panelTitle = document.getElementById('panelTitle');
+        const panelDesc = document.getElementById('panelDesc');
+        const panelNodeId = document.getElementById('panelNodeId');
+
+        const aiSuggestionBox = document.getElementById('aiSuggestionBox');
+        const aiLoader = document.getElementById('aiLoader');
+        const aiError = document.getElementById('aiError');
+        const aiErrorText = document.getElementById('aiErrorText');
+        const aiContent = document.getElementById('aiContent');
+        const aiHeaderLabel = document.getElementById('aiHeaderLabel');
+        const aiDescriptionLabel = document.getElementById('aiDescriptionLabel');
+        const executeAiActionBtn = document.getElementById('executeAiActionBtn');
+
+        // Render standard grid array system
+        function buildGrid() {
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 96; i++) {
+                const node = document.createElement('div');
+                node.className = 'node h-12 w-full rounded border cursor-pointer flex items-center justify-center text-[10px] font-mono text-neutral-500/50 relative';
+                node.dataset.index = i;
+                
+                // Calculate physical Grid position mappings
+                const row = Math.floor(i / 8) + 1;
+                const col = (i % 8) + 1;
+                node.dataset.coordinate = `R:${row}, C:${col}`;
+
+                // Inject internal layout metadata state rules
+                updateNodeRepresentation(node, i);
+
+                // Tooltip Interactions (Coordinates)
+                node.onmouseenter = (e) => {
+                    tooltip.classList.remove('hidden');
+                    const hasMeta = nodeMap[i];
+                    tooltipLabel.innerText = hasMeta ? hasMeta.label : 'Empty Architecture Slot';
+                    
+                    if (hasMeta?.dynamicStatus === 'anomaly-warning') {
+                        tooltipLabel.innerText += " (⚠️ Pre-Critical Anomaly)";
+                    }
+                    tooltipCoordinate.innerText = `[${node.dataset.coordinate}]`;
+                };
+
+                node.onmousemove = (e) => {
+                    const rect = grid.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    tooltip.style.left = (x + 16) + 'px';
+                    tooltip.style.top = (y + 16) + 'px';
+                };
+
+                node.onmouseleave = () => {
+                    tooltip.classList.add('hidden');
+                };
+
+                // Node Selection Interface Triggers
+                node.onclick = () => {
+                    if (activeNodeElement) activeNodeElement.classList.remove('active', 'ring-2', 'ring-white');
+                    
+                    node.classList.add('active', 'ring-2', 'ring-white');
+                    activeNodeElement = node;
+                    selectedNodeIndex = i;
+
+                    handleNodeClick(i, node);
+                };
+
+                grid.appendChild(node);
+            }
+            applyGridFilter(currentFilter);
+        }
+
+        function updateNodeRepresentation(node, index) {
+            // Remove previous style state classes
+            node.className = node.className.replace(/\b(homeland|zoes-mock-trial|empty|predictive-warning|editable-target)\b/g, '').trim();
+
+            const record = nodeMap[index];
+            if (record) {
+                node.classList.add(record.cat);
+                node.innerText = `${index}`;
+                node.style.borderWidth = '1px';
+
+                if (isDiagnosticMode && record.dynamicStatus === 'anomaly-warning') {
+                    node.classList.add('predictive-warning');
+                }
+            } else {
+                node.classList.add('empty');
+                node.innerText = '+';
+                
+                if (isDiagnosticMode) {
+                    node.classList.add('editable-target');
+                }
+            }
+        }
+
+        // Output logger onto the scrolling dashboard console window
+        function writeToSystemLog(message, type = 'SYS') {
+            const time = new Date().toLocaleTimeString([], { hour12: false });
+            const line = document.createElement('div');
+            
+            if (type === 'ERROR') {
+                line.innerHTML = `<span class="text-rose-500">[${time} ${type}] ${message}</span>`;
+            } else if (type === 'AI') {
+                line.innerHTML = `<span class="text-indigo-400">[${time} ${type}] ${message}</span>`;
+            } else if (type === 'WARN') {
+                line.innerHTML = `<span class="text-amber-500">[${time} ${type}] ${message}</span>`;
+            } else {
+                line.innerHTML = `<span class="text-neutral-500">[${time} ${type}] ${message}</span>`;
+            }
+
+            systemTerminalLog.appendChild(line);
+            systemTerminalLog.scrollTop = systemTerminalLog.scrollHeight;
+        }
+
+        // Core dynamic action controller on clicked node targets
+        async function handleNodeClick(index, node) {
+            const hasRecord = nodeMap[index];
+            panelCoords.innerText = `Index #${index} (${node.dataset.coordinate})`;
+            panelNodeId.innerText = `BLOCK-ADDR-0X${index.toString(16).toUpperCase().padStart(2, '0')}`;
+
+            // Reset AI box state
+            aiSuggestionBox.classList.add('hidden');
+            aiLoader.classList.add('hidden');
+            aiError.classList.add('hidden');
+            aiContent.classList.add('hidden');
+
+            if (isDiagnosticMode) {
+                if (!hasRecord) {
+                    // Scenario A: Clicked on a Red Flashing Empty Cell (Expansion Opportunity)
+                    panelTitle.innerText = "Empty Coordinate Selected";
+                    panelTitle.className = "text-lg font-bold text-rose-500";
+                    panelDesc.innerText = "System diagnostic signals reveal unallocated space here. Running a prediction to build matching infrastructure extensions...";
+                    panelCategoryTag.innerText = "Unassigned Slot";
+                    panelCategoryTag.className = "text-[10px] font-bold uppercase tracking-widest text-rose-400";
+                    
+                    // Fire off generative AI model suggestion
+                    triggerGeminiAiAnalysis(index, 'expansion');
+
+                } else if (hasRecord.dynamicStatus === 'anomaly-warning') {
+                    // Scenario B: Clicked on a Yellow Flashing Node (Pre-failure Anomaly State)
+                    panelTitle.innerText = `${hasRecord.label} - Warning`;
+                    panelTitle.className = "text-lg font-bold text-amber-500";
+                    panelDesc.innerText = `Warning: High telemetry variances detected. System predicts database lockups or memory fragmentation on block ${index}. Fetching predictive prognosis...`;
+                    panelCategoryTag.innerText = "Impending Anomaly";
+                    panelCategoryTag.className = "text-[10px] font-bold uppercase tracking-widest text-amber-400";
+
+                    triggerGeminiAiAnalysis(index, 'prognosis');
+                } else {
+                    // Scenario C: Clicked standard functional node inside diagnostic mode
+                    panelTitle.innerText = hasRecord.label;
+                    panelTitle.className = "text-lg font-bold text-neutral-100";
+                    panelDesc.innerText = hasRecord.desc;
+                    panelCategoryTag.innerText = hasRecord.cat.replace('-', ' ');
+                    
+                    const classes = categoryColorMap[hasRecord.cat] || categoryColorMap['empty'];
+                    panelCategoryTag.className = `text-[10px] font-bold uppercase tracking-widest ${classes.text}`;
+                }
+            } else {
+                // View Mode: Static standard click description render
+                if (hasRecord) {
+                    panelTitle.innerText = recordTitle = hasRecord.label;
+                    panelTitle.className = "text-lg font-bold text-neutral-100";
+                    panelDesc.innerText = hasRecord.desc;
+                    panelCategoryTag.innerText = hasRecord.cat.replace('-', ' ');
+                    
+                    const classes = categoryColorMap[hasRecord.cat] || categoryColorMap['empty'];
+                    panelCategoryTag.className = `text-[10px] font-bold uppercase tracking-widest ${classes.text}`;
+                } else {
+                    panelTitle.innerText = "Empty Matrix Block";
+                    panelTitle.className = "text-lg font-bold text-neutral-400";
+                    panelDesc.innerText = "No modules are mapped here yet. Turn on Diagnostic Mode in order to reconstruct system nodes.";
+                    panelCategoryTag.innerText = "EMPTY";
+                    panelCategoryTag.className = "text-[10px] font-bold uppercase tracking-widest text-neutral-600";
+                }
+            }
+        }
+
+        // --- DYNAMIC LIVE GEMINI RETRY LOGIC & CALLING ---
+        async function fetchGeminiCoreSuggestion(prompt, systemPrompt) {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            label: { type: "STRING" },
+                            desc: { type: "STRING" },
+                            category: { type: "STRING" }, // 'homeland' or 'zoes-mock-trial'
+                            prognosisWarning: { type: "STRING" } // ONLY for prognosis type
+                        },
+                        required: ["label", "desc", "category"]
+                    }
+                }
+            };
+
+            let retryDelay = 1000;
+            // Exponential backoff strategy (up to 5 loops)
+            for (let attempt = 0; attempt < 5; attempt++) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        const json = await response.json();
+                        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                        return JSON.parse(text);
+                    }
+                } catch (e) {
+                    // Do not log failures to console per instructions
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                retryDelay *= 2; // exponential backoff multiplication
+            }
+            throw new Error("API Connection Timeout. LLM Diagnostic channels disrupted.");
+        }
+
+        // Setup prompts context based on adjacent cells coordinates
+        async function triggerGeminiAiAnalysis(index, analysisType) {
+            aiSuggestionBox.classList.remove('hidden');
+            aiLoader.classList.remove('hidden');
+            aiError.classList.add('hidden');
+            aiContent.classList.add('hidden');
+
+            const row = Math.floor(index / 8) + 1;
+            const col = (index % 8) + 1;
+
+            // Compile surrounding data structures
+            const leftNode = nodeMap[index - 1] ? `Node to Left is named: ${nodeMap[index - 1].label}, Category: ${nodeMap[index - 1].cat}` : "Left is empty.";
+            const rightNode = nodeMap[index + 1] ? `Node to Right is named: ${nodeMap[index + 1].label}, Category: ${nodeMap[index + 1].cat}` : "Right is empty.";
+            const topNode = nodeMap[index - 8] ? `Node above is named: ${nodeMap[index - 8].label}, Category: ${nodeMap[index - 8].cat}` : "Above is empty.";
+            const bottomNode = nodeMap[index + 8] ? `Node below is named: ${nodeMap[index + 8].label}, Category: ${nodeMap[index + 8].cat}` : "Below is empty.";
+
+            const systemPrompt = `You are "The Guardian" core prognostic neural AI interface. Your task is to output clean valid structured JSON configurations to diagnose or construct a system matrix node.
+You must categorize nodes as either "homeland" (focused on safety, perimeter defense, infrastructure, databases, guardrails) or "zoes-mock-trial" (testing virtualizations, legal processes, simulations, dry-runs, system tests).
+CRITICAL: If creating a prognosis for a yellow warning cell, the 'prognosisWarning' field MUST start with 'Hey, look!' and explain exactly what technical issue will happen contextually (e.g. database locks, buffer inflation, thread overflow), followed by a clear, tailored recommendation.`;
+
+            let userQuery = "";
+
+            if (analysisType === 'expansion') {
+                userQuery = `Recommend a new node creation model configuration for cell #${index} at Row ${row}, Column ${col}.
+Surrounding contextual landscape:
+- ${leftNode}
+- ${rightNode}
+- ${topNode}
+- ${bottomNode}
+
+Generate a matching, logical category, highly creative network module name (label), and clean technical description (desc) matching the neighbor theme. Use "homeland" or "zoes-mock-trial" for category.`;
+            } else {
+                const targetNode = nodeMap[index];
+                userQuery = `Diagnose a predictive pre-failure warning (Yellow Alert) on cell #${index} (${targetNode.label}, Category: ${targetNode.cat}) at Row ${row}, Column ${col}.
+Adjacent nodes landscape:
+- ${leftNode}
+- ${rightNode}
+- ${topNode}
+- ${bottomNode}
+
+Generate a 'prognosisWarning' field starting with 'Hey, look!' explaining a theoretical conflict between this cell and its surrounding cells (e.g. resource conflict, packet collisions, loop limits) and recommend a fix. Also output a suggested modified label, modified desc, and keep category as ${targetNode.cat}.`;
+            }
+
+            try {
+                const aiResult = await fetchGeminiCoreSuggestion(userQuery, systemPrompt);
+                
+                // Cache results for action buttons
+                lastAIResponse = {
+                    index: index,
+                    type: analysisType,
+                    data: aiResult
+                };
+
+                // Render dynamic response inside AI panel box
+                aiLoader.classList.add('hidden');
+                aiContent.classList.remove('hidden');
+
+                if (analysisType === 'expansion') {
+                    aiHeaderLabel.innerText = `💡 Recommended Expansion: "${aiResult.label}"`;
+                    aiDescriptionLabel.innerHTML = `Our diagnostics suggest a new <strong class="text-indigo-400 font-semibold">${aiResult.category.replace('-', ' ')}</strong> block. <br/><br/><strong>Target Purpose:</strong> ${aiResult.desc}`;
+                    executeAiActionBtn.innerText = "Accept AI Architecture";
+                    executeAiActionBtn.className = "w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/30";
+                    writeToSystemLog(`Expansion suggestion generated for Block ${index}`, 'AI');
+                } else {
+                    aiHeaderLabel.innerText = "⚠️ Preemptive Issue Detected";
+                    aiDescriptionLabel.innerHTML = `<span class="text-amber-400 font-mono text-[11px] block bg-amber-950/40 p-2 border border-amber-900/50 rounded-md mb-2">${aiResult.prognosisWarning}</span><strong>Resolution:</strong> Accept optimization patch to rewrite block purpose to "${aiResult.label}".`;
+                    executeAiActionBtn.innerText = "Deploy Preemptive Optimization Patch";
+                    executeAiActionBtn.className = "w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-amber-950/30";
+                    writeToSystemLog(`Preemptive warning anomaly prognosis created for Block ${index}`, 'AI');
+                }
+
+            } catch (error) {
+                aiLoader.classList.add('hidden');
+                aiError.classList.remove('hidden');
+                aiErrorText.innerText = error.message;
+                writeToSystemLog(`AI predictive engine failure: ${error.message}`, 'ERROR');
+            }
+        }
+
+        // Apply recommended AI node updates in real-time
+        executeAiActionBtn.onclick = () => {
+            if (!lastAIResponse) return;
+
+            const { index, type, data } = lastAIResponse;
+
+            if (type === 'expansion') {
+                // Commit new cell creation to model map
+                nodeMap[index] = {
+                    cat: data.category,
+                    label: data.label,
+                    desc: data.desc,
+                    dynamicStatus: 'stable'
+                };
+                writeToSystemLog(`Allocated block #${index} as [${data.label}]`, 'SYS');
+            } else {
+                // Apply patches to mitigate anomaly
+                nodeMap[index].label = data.label;
+                nodeMap[index].desc = data.desc + " [AI Preemptively Patched & Optimized]";
+                nodeMap[index].dynamicStatus = 'stable';
+                writeToSystemLog(`Resolved anomaly on block #${index} via AI Optimization Patch`, 'SYS');
+            }
+
+            // Hide suggestions panel and re-render grid
+            aiSuggestionBox.classList.add('hidden');
+            
+            // Re-render targets
+            updateNodeRepresentation(activeNodeElement, index);
+            createGridNodeRefresh();
+
+            // Refresh Detail Panels
+            handleNodeClick(index, activeNodeElement);
+            lastAIResponse = null;
+        };
+
+        // Complete Grid Refresh Loop
+        function createGridNodeRefresh() {
+            const nodes = grid.querySelectorAll('.node');
+            nodes.forEach(node => {
+                const idx = parseInt(node.dataset.index);
+                updateNodeRepresentation(node, idx);
+            });
+            applyGridFilter(currentFilter);
+        }
+
+        // Grid filters layout engine
+        function applyGridFilter(filterType) {
+            currentFilter = filterType;
+            const nodes = grid.querySelectorAll('.node');
+
+            nodes.forEach(node => {
+                node.classList.remove('dimmed', 'opacity-20');
+                const index = parseInt(node.dataset.index);
+                const hasRecord = nodeMap[index];
+
+                if (filterType === 'homeland') {
+                    if (!hasRecord || hasRecord.cat !== 'homeland') node.classList.add('dimmed', 'opacity-20');
+                } else if (filterType === 'zoes-mock-trial') {
+                    if (!hasRecord || hasRecord.cat !== 'zoes-mock-trial') node.classList.add('dimmed', 'opacity-20');
+                } else if (filterType === 'empty') {
+                    if (hasRecord) node.classList.add('dimmed', 'opacity-20');
+                }
+            });
+        }
+
+        // --- FILTER BUTTON INTERACTION HANDLERS ---
+        filterBtns.forEach(btn => {
+            btn.onclick = () => {
+                filterBtns.forEach(b => {
+                    b.classList.remove('bg-neutral-100', 'text-neutral-950', 'font-bold');
+                    b.classList.add('bg-neutral-800', 'text-neutral-300');
+                });
+                btn.classList.remove('bg-neutral-800', 'text-neutral-300');
+                btn.classList.add('bg-neutral-100', 'text-neutral-950', 'font-bold');
+
+                applyGridFilter(btn.dataset.filter);
+            };
+        });
+
+        // Toggle diagnostics and trigger UI animations
+        const toggleDiagnosticBtn = document.getElementById('toggleDiagnosticBtn');
+        const diagnosticIndicator = document.getElementById('diagnosticIndicator');
+        const diagnosticStatusText = document.getElementById('diagnosticStatusText');
+
+        toggleDiagnosticBtn.onclick = () => {
+            isDiagnosticMode = !isDiagnosticMode;
+            aiSuggestionBox.classList.add('hidden');
+
+            if (isDiagnosticMode) {
+                toggleDiagnosticBtn.classList.add('bg-rose-950/20', 'text-rose-400', 'border-rose-800');
+                toggleDiagnosticBtn.classList.remove('bg-neutral-800', 'text-neutral-300');
+                diagnosticIndicator.classList.remove('bg-neutral-500');
+                diagnosticIndicator.classList.add('bg-rose-500', 'animate-ping');
+                diagnosticStatusText.innerText = "Active";
+                diagnosticStatusText.className = "text-[10px] font-bold text-rose-500 uppercase tracking-widest";
+                writeToSystemLog("Diagnostics scan sweep enabled.", "WARN");
+            } else {
+                toggleDiagnosticBtn.classList.remove('bg-rose-950/20', 'text-rose-400', 'border-rose-800');
+                toggleDiagnosticBtn.classList.add('bg-neutral-800', 'text-neutral-300');
+                diagnosticIndicator.classList.add('bg-neutral-500');
+                diagnosticIndicator.classList.remove('bg-rose-500', 'animate-ping');
+                diagnosticStatusText.innerText = "Off";
+                diagnosticStatusText.className = "text-[10px] font-bold text-neutral-500 uppercase tracking-widest";
+                writeToSystemLog("Diagnostics console disabled.", "SYS");
+            }
+
+            createGridNodeRefresh();
+
+            // Refresh current selected node states
+            if (selectedNodeIndex !== null) {
+                handleNodeClick(selectedNodeIndex, activeNodeElement);
+            }
+        };
+
+        // Anomaly Injections Simulator Trigger
+        const simulateAnomalyBtn = document.getElementById('simulateAnomalyBtn');
+        simulateAnomalyBtn.onclick = () => {
+            // Find active stable blocks
+            const activeIndices = Object.keys(nodeMap).filter(idx => nodeMap[idx].dynamicStatus !== 'anomaly-warning');
+            
+            if (activeIndices.length === 0) {
+                writeToSystemLog("Injection failed: No active healthy nodes available.", "ERROR");
+                return;
+            }
+
+            // Randomly degrade an active block
+            const randomIndex = activeIndices[Math.floor(Math.random() * activeIndices.length)];
+            nodeMap[randomIndex].dynamicStatus = 'anomaly-warning';
+
+            writeToSystemLog(`WARNING: Grid Anomaly detected at node #${randomIndex}. Preemptive system degradation expected.`, "WARN");
+            
+            createGridNodeRefresh();
+            
+            // Automatically prompt details on injected node if currently selected
+            if (parseInt(selectedNodeIndex) === parseInt(randomIndex)) {
+                handleNodeClick(selectedNodeIndex, activeNodeElement);
+            }
+        };
+
+        // Clear log script
+        document.getElementById('clearLogBtn').onclick = () => {
+            systemTerminalLog.innerHTML = '<div>[SYS] Central matrix telemetry cleared.</div>';
+        };
+
+        // Initialize grid on run
+        buildGrid();
+    </script>
+</body>
+</html>
+
+```
