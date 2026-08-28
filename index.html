@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GU Workspace Control</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --accent: #38bdf8;
+      --success: #34d399;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 16px; min-height: 100vh; }
+    header { margin-bottom: 20px; }
+    h1 { font-size: 1.5rem; color: var(--accent); }
+    .status-badge { display: inline-block; font-size: 0.8rem; background: #064e3b; color: var(--success); padding: 4px 8px; border-radius: 4px; margin-top: 6px; }
+    
+    .grid { display: flex; flex-direction: column; gap: 16px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--text); }
+    
+    button {
+      width: 100%;
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    button:active { background: #0369a1; }
+    
+    .output-box {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #cbd5e1;
+      min-height: 50px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>GU Workspace Hub</h1>
+    <div id="status" class="status-badge">Connecting to MCP Server...</div>
+  </header>
+
+  <div class="grid">
+    <!-- Weather Card -->
+    <div class="card">
+      <h2>Live Weather & Site Conditions</h2>
+      <button onclick="runWeather()">Get Weather (Bayonet Point)</button>
+      <div id="weatherOutput" class="output-box">Press button to load...</div>
+    </div>
+
+    <!-- Briefing Card -->
+    <div class="card">
+      <h2>Morning Briefing & Priority Tasks</h2>
+      <button onclick="runBriefing()">Fetch Morning Briefing</button>
+      <div id="briefingOutput" class="output-box">Press button to load...</div>
+    </div>
+  </div>
+
+  <script>
+    const MCP_URL = "https://workspace-mcp-21t3.onrender.com";
+    let messageEndpoint = "";
+    let requestId = 1;
+
+    // Connect to SSE Stream
+    const eventSource = new EventSource(`${MCP_URL}/sse`);
+
+    eventSource.addEventListener("endpoint", (event) => {
+      messageEndpoint = MCP_URL + event.data;
+      document.getElementById("status").textContent = "Connected to Live MCP";
+      
+      // Send MCP Initialization Handshake
+      fetch(messageEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: requestId++,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "mobile-dashboard", version: "1.0" }
+          }
+        })
+      });
+    });
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.result && data.result.content) {
+          const text = data.result.content[0].text;
+          const parsed = JSON.parse(text);
+          if (parsed.temperature_f !== undefined) {
+            document.getElementById("weatherOutput").textContent = JSON.stringify(parsed, null, 2);
+          } else if (parsed.urgent_tasks !== undefined) {
+            document.getElementById("briefingOutput").textContent = JSON.stringify(parsed, null, 2);
+          }
+        }
+      } catch (e) {
+        console.log("Raw event:", event.data);
+      }
+    };
+
+    function runWeather() {
+      if (!messageEndpoint) return alert("Still connecting to MCP...");
+      document.getElementById("weatherOutput").textContent = "Querying live weather...";
+      fetch(messageEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: requestId++,
+          method: "tools/call",
+          params: {
+            name: "get_live_weather",
+            arguments: { location: "Bayonet Point, FL" }
+          }
+        })
+      });
+    }
+
+    function runBriefing() {
+      if (!messageEndpoint) return alert("Still connecting to MCP...");
+      document.getElementById("briefingOutput").textContent = "Loading schedule and tasks...";
+      fetch(messageEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: requestId++,
+          method: "tools/call",
+          params: {
+            name: "get_morning_briefing",
+            arguments: { user: "Tara" }
+          }
+        })
+      });
+    }
+  </script>
+</body>
+</html>
